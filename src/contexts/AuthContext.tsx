@@ -63,19 +63,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // --- INÍCIO DA LÓGICA REATORADA ---
   useEffect(() => {
-    // Este listener agora centraliza toda a lógica de carregamento de dados.
-    // Ele é acionado na carga inicial da página e em qualquer evento de login/logout.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       setIsLoading(true);
-      setSession(session);
-      setIsEmailConfirmed(!!session?.user?.email_confirmed_at);
+      try {
+        setSession(session);
+        setIsEmailConfirmed(!!session?.user?.email_confirmed_at);
 
-      // Se houver uma sessão, busca o perfil e a assinatura
-      if (session?.user) {
-        try {
-          // Busca os dois dados em paralelo para mais eficiência
+        if (session?.user) {
           const [profileResponse, subscriptionResponse] = await Promise.all([
             supabase
               .from('profiles')
@@ -85,7 +81,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             supabase.functions.invoke('check-subscription'),
           ]);
 
-          // Processa o resultado do perfil
+          if (profileResponse.error) throw profileResponse.error;
+          if (subscriptionResponse.error) throw subscriptionResponse.error;
+
           const profile = profileResponse.data;
           setUser(
             profile
@@ -97,23 +95,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               : null,
           );
 
-          // Processa o resultado da assinatura
           const subData = subscriptionResponse.data;
-          if (subData) {
-            console.log('✅ Status da assinatura carregado:', subData);
-            setSubscriptionInfo({
-              subscribed: subData.subscribed || false,
-              subscription_tier: subData.subscription_tier,
-              subscription_end: subData.subscription_end,
-              trial_end: subData.trial_end,
-              in_trial: subData.in_trial || false,
-            });
-          }
-        } catch (error) {
-          console.error(
-            'Erro ao buscar dados do usuário ou assinatura:',
-            error,
-          );
+          setSubscriptionInfo({
+            subscribed: subData.subscribed || false,
+            subscription_tier: subData.subscription_tier,
+            subscription_end: subData.subscription_end,
+            trial_end: subData.trial_end,
+            in_trial: subData.in_trial || false,
+          });
+        } else {
           setUser(null);
           setSubscriptionInfo({
             subscribed: false,
@@ -123,8 +113,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             in_trial: false,
           });
         }
-      } else {
-        // Se não há sessão (logout), limpa todos os dados
+      } catch (error) {
+        console.error('Erro ao revalidar a sessão:', error);
         setUser(null);
         setSubscriptionInfo({
           subscribed: false,
@@ -133,8 +123,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           trial_end: null,
           in_trial: false,
         });
+      } finally {
+        // ESTE BLOCO AGORA GARANTE QUE O LOADING SEMPRE TERMINA
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
 
     return () => {
