@@ -1,5 +1,4 @@
 // Em supabase/functions/create-subscription/index.ts
-
 import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import Stripe from 'https://esm.sh/stripe@13.11.0';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
