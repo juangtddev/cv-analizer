@@ -1,11 +1,11 @@
-// Em src/contexts/AuthContext.tsx
+// src/contexts/AuthContext.tsx
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// Interfaces
+// Interfaces (sem alterações)
 interface AppUser {
   id: string;
   email: string;
@@ -36,40 +36,19 @@ interface AuthContextType {
   createCheckoutSession: () => Promise<{ url?: string; error?: string }>;
   createSubscription: (
     paymentMethodId: string,
-    priceId: string,
-  ) => Promise<{ success?: boolean; error?: any }>;
+    priceId: string, // Adicionado novo parâmetro
+  ) => Promise<{ success?: boolean; error?: string }>;
   openCustomerPortal: () => Promise<{ url?: string; error?: string }>;
   isLoading: boolean;
-  startTrial: () => Promise<{ error?: any }>;
+  startTrial: () => Promise<{ error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Função Helper com Timeout
-const invokeWithTimeout = (
-  functionName: string,
-  options?: any,
-  timeout = 10000,
-) => {
-  return Promise.race([
-    supabase.functions.invoke(functionName, options),
-    new Promise((_, reject) =>
-      setTimeout(
-        () =>
-          reject(
-            new Error(
-              `A chamada da função '${functionName}' excedeu o tempo limite.`,
-            ),
-          ),
-        timeout,
-      ),
-    ),
-  ]);
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  // States (sem alterações)
   const [user, setUser] = useState<AppUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isEmailConfirmed, setIsEmailConfirmed] = useState(false);
@@ -82,57 +61,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   const [isLoading, setIsLoading] = useState(true);
 
+  // --- INÍCIO DA LÓGICA REATORADA ---
   useEffect(() => {
+    // Este listener agora centraliza toda a lógica de carregamento de dados.
+    // Ele é acionado na carga inicial da página e em qualquer evento de login/logout.
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      // Ativa o loading apenas se houver uma mudança real de usuário ou na carga inicial
-      if (currentSession?.user?.id !== session?.user?.id || isLoading) {
-        setIsLoading(true);
-      }
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setIsLoading(true);
+      setSession(session);
+      setIsEmailConfirmed(!!session?.user?.email_confirmed_at);
 
-      try {
-        setSession(currentSession);
-        setIsEmailConfirmed(!!currentSession?.user?.email_confirmed_at);
-
-        if (currentSession?.user) {
+      // Se houver uma sessão, busca o perfil e a assinatura
+      if (session?.user) {
+        try {
+          // Busca os dois dados em paralelo para mais eficiência
           const [profileResponse, subscriptionResponse] = await Promise.all([
             supabase
               .from('profiles')
               .select('*')
-              .eq('id', currentSession.user.id)
+              .eq('id', session.user.id)
               .single(),
-            invokeWithTimeout('check-subscription'),
+            supabase.functions.invoke('check-subscription'),
           ]);
 
-          // @ts-ignore
-          if (profileResponse.error) throw profileResponse.error;
-          // @ts-ignore
-          if (subscriptionResponse.error) throw subscriptionResponse.error;
-
-          // @ts-ignore
+          // Processa o resultado do perfil
           const profile = profileResponse.data;
           setUser(
             profile
               ? {
-                  id: currentSession.user.id,
-                  email: currentSession.user.email || '',
+                  id: session.user.id,
+                  email: session.user.email || '',
                   nome: profile.nome || '',
                 }
               : null,
           );
 
-          // @ts-ignore
+          // Processa o resultado da assinatura
           const subData = subscriptionResponse.data;
-          setSubscriptionInfo({
-            subscribed: subData.subscribed || false,
-            subscription_tier: subData.subscription_tier,
-            subscription_end: subData.subscription_end,
-            trial_end: subData.trial_end,
-            in_trial: subData.in_trial || false,
-          });
-        } else {
-          // Se não há sessão (logout), limpa os dados
+          if (subData) {
+            console.log('✅ Status da assinatura carregado:', subData);
+            setSubscriptionInfo({
+              subscribed: subData.subscribed || false,
+              subscription_tier: subData.subscription_tier,
+              subscription_end: subData.subscription_end,
+              trial_end: subData.trial_end,
+              in_trial: subData.in_trial || false,
+            });
+          }
+        } catch (error) {
+          console.error(
+            'Erro ao buscar dados do usuário ou assinatura:',
+            error,
+          );
           setUser(null);
           setSubscriptionInfo({
             subscribed: false,
@@ -142,58 +123,121 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             in_trial: false,
           });
         }
-      } catch (error) {
-        console.error(
-          'Falha na revalidação em segundo plano, mantendo estado atual:',
-          error,
-        );
-        // CORREÇÃO CRÍTICA: Não deslogamos mais o usuário por uma falha de rede.
-        // A aplicação continuará com os dados que já tinha.
-      } finally {
-        // Garante que o loading sempre termine.
-        setIsLoading(false);
+      } else {
+        // Se não há sessão (logout), limpa todos os dados
+        setUser(null);
+        setSubscriptionInfo({
+          subscribed: false,
+          subscription_tier: null,
+          subscription_end: null,
+          trial_end: null,
+          in_trial: false,
+        });
       }
+      setIsLoading(false);
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [session]); // Adicionado `session` como dependência para re-executar quando a sessão mudar
+  }, []);
+  // --- FIM DA LÓGICA REATORADA ---
 
-  // Suas Funções de Negócio
+  // Suas funções de negócio (sem alterações)
   const checkSubscriptionStatus = async () => {
-    /* ... implementação existente ... */
+    // Esta função interna agora pode ser usada para uma verificação manual se necessário
+    if (!session) return;
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'check-subscription',
+      );
+      if (error) throw error;
+      if (data) {
+        setSubscriptionInfo({
+          subscribed: data.subscribed || false,
+          subscription_tier: data.subscription_tier,
+          subscription_end: data.subscription_end,
+          trial_end: data.trial_end,
+          in_trial: data.in_trial || false,
+        });
+      }
+    } catch (error) {
+      console.error('Erro na verificação manual da assinatura:', error);
+    }
   };
+
   const login = async (email: string, password: string) => {
-    /* ... implementação existente ... */
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) return { error: error.message };
+    return {};
   };
+
   const register = async (email: string, password: string, nome: string) => {
-    /* ... implementação existente ... */
+    const redirectUrl =
+      window.location.hostname === 'localhost'
+        ? `${window.location.origin}/`
+        : 'https://cvanalizer.fluxdata.com.br/';
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: { nome: nome },
+      },
+    });
+    if (error) return { error: error.message };
+    return {};
   };
+
   const logout = async () => {
-    /* ... implementação existente ... */
+    const { error } = await supabase.auth.signOut();
+    if (error) console.error('Error logging out:', error);
   };
+
   const checkSubscription = async () => {
-    /* ... implementação existente ... */
+    await checkSubscriptionStatus();
   };
+
   const createCheckoutSession = async () => {
-    /* ... implementação existente ... */
+    if (!session)
+      return { error: 'Você precisa estar logado para fazer uma assinatura' };
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'create-checkout',
+      );
+      if (error) return { error: error.message };
+      return { url: data.url };
+    } catch (error) {
+      return { error: 'Erro ao criar sessão de pagamento' };
+    }
   };
 
   const createSubscription = async (
     paymentMethodId: string,
     priceId: string,
   ) => {
-    if (!session)
+    if (!session) {
       return { error: 'Você precisa estar logado para fazer uma assinatura' };
+    }
+
     setIsLoading(true);
     try {
-      const { data, error } = await invokeWithTimeout('create-subscription', {
-        body: { paymentMethodId, priceId },
-      });
-      // @ts-ignore
-      if (error) throw new Error(error.message);
-      await checkSubscriptionStatus(); // Re-busca o status após a ação
+      const { data, error: functionError } = await supabase.functions.invoke(
+        'create-subscription',
+        {
+          body: { paymentMethodId, priceId }, // Enviando o priceId para o backend
+        },
+      );
+
+      if (functionError) {
+        throw new Error(functionError.message);
+      }
+
+      await checkSubscriptionStatus();
+
       toast.success('Assinatura criada com sucesso!');
       return { success: true };
     } catch (error: any) {
@@ -208,25 +252,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const startTrial = async () => {
-    if (!session)
+    if (!session) {
       return { error: 'Você precisa estar logado para iniciar um teste.' };
+    }
+
+    // 1. AVISA A APLICAÇÃO QUE ESTAMOS CARREGANDO DADOS IMPORTANTES
     setIsLoading(true);
+
     try {
-      const { error } = await invokeWithTimeout('start-trial');
-      // @ts-ignore
-      if (error) throw new Error(error.message);
-      await checkSubscriptionStatus(); // Re-busca o status após a ação
-      return {};
+      const { error: functionError } = await supabase.functions.invoke(
+        'start-trial',
+      );
+      if (functionError) throw new Error(functionError.message);
+
+      // 2. ATUALIZA O ESTADO LOCAL COM OS NOVOS DADOS DO BANCO
+      await checkSubscriptionStatus(); // Esta função já existe no seu arquivo
+
+      toast.success('Período de teste iniciado! Redirecionando...');
+      return {}; // Sucesso
     } catch (error: any) {
       console.error('Erro ao iniciar o trial:', error);
+      toast.error('Erro ao iniciar o período de teste.', {
+        description: error.message,
+      });
       return { error: error.message };
     } finally {
+      // 3. AVISA QUE O CARREGAMENTO TERMINOU, INDEPENDENTE DE SUCESSO OU FALHA
       setIsLoading(false);
     }
   };
 
   const openCustomerPortal = async () => {
-    /* ... implementação existente ... */
+    if (!session)
+      return { error: 'Você precisa estar logado para acessar o portal' };
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'customer-portal',
+      );
+      if (error) return { error: error.message };
+      return { url: data.url };
+    } catch (error) {
+      return { error: 'Erro ao abrir portal do cliente' };
+    }
   };
 
   return (
