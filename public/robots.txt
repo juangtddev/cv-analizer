@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /perfil
+Disallow: /historico
+Disallow: /cadastro-vagas
+Disallow: /upload-curriculo
+Disallow: /simulador-entrevista
+Disallow: /resultado-analise
+
+Sitemap: https://cvanalyzer.lovable.app/sitemap.xml
+
+# Specific crawlers
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1

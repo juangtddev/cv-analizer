@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirme seu cadastro - CV Analyzer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .content h2 {
+            color: #333;
+            margin-top: 0;
+            font-size: 24px;
+        }
+        .content p {
+            color: #666;
+            margin: 15px 0;
+            font-size: 16px;
+        }
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+            text-align: center;
+            transition: transform 0.2s ease;
+        }
+        .button:hover {
+            transform: translateY(-1px);
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+            border-top: 1px solid #eee;
+        }
+        .logo {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .security-note {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">CV Analyzer</div>
+            <h1>Bem-vindo ao CV Analyzer!</h1>
+        </div>
+        
+        <div class="content">
+            <h2>Confirme seu cadastro</h2>
+            <p>Olá! Obrigado por se cadastrar no <strong>CV Analyzer</strong>.</p>
+            <p>Para ativar sua conta e começar a analisar currículos com inteligência artificial, clique no botão abaixo:</p>
+            
+            <center>
+                <a href="{{ .ConfirmationURL }}" class="button">
+                    Confirmar Cadastro
+                </a>
+            </center>
+            
+            <div class="security-note">
+                <strong>🔒 Segurança:</strong> Este link é válido por 24 horas e só pode ser usado uma vez. Se você não solicitou este cadastro, pode ignorar este email com segurança.
+            </div>
+            
+            <p>Após confirmar sua conta, você poderá:</p>
+            <ul>
+                <li>✨ Analisar currículos com IA avançada</li>
+                <li>📊 Receber relatórios detalhados</li>
+                <li>💼 Simular entrevistas personalizadas</li>
+                <li>🎯 Otimizar seus processos de seleção</li>
+            </ul>
+            
+            <p>Se o botão não funcionar, copie e cole este link no seu navegador:</p>
+            <p style="word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 14px;">{{ .ConfirmationURL }}</p>
+        </div>
+        
+        <div class="footer">
+            <p><strong>CV Analyzer</strong> - Sua plataforma de análise de currículos com IA</p>
+            <p>cvanalizer.fluxdata.com.br</p>
+            <p>Este é um email automático, por favor não responda.</p>
+        </div>
+    </div>
+</body>
+</html>
