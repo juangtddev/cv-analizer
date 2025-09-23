@@ -9,8 +9,40 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
 import { SocialButtons } from '@/components/auth/SocialButtons';
+
+// --- NOVA FUNÇÃO "TRADUTORA" ---
+const translateAuthError = (message: string): string => {
+  // --- NOVA TRADUÇÃO ADICIONADA AQUI ---
+  if (message.includes('social_account_exists')) {
+    return 'Este e-mail já está cadastrado. Tente fazer o login ou use a opção "Esqueceu sua senha?".';
+  }
+  if (message.includes('Invalid login credentials')) {
+    return 'E-mail ou senha inválidos. Por favor, verifique seus dados e tente novamente.';
+  }
+  if (message.includes('User already registered')) {
+    // Esta tradução agora serve como um "backup"
+    return 'Este e-mail já está cadastrado. Tente fazer o login ou use a opção "Esqueceu sua senha?".';
+  }
+  if (message.includes('Email not confirmed')) {
+    return 'Seu e-mail ainda não foi confirmado. Por favor, verifique sua caixa de entrada e clique no link de confirmação.';
+  }
+  if (message.includes('Password should be at least 6 characters')) {
+    return 'A senha deve ter pelo menos 6 caracteres.';
+  }
+  console.log(message);
+  return 'Ocorreu um erro inesperado. Por favor, tente novamente mais tarde.';
+};
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -19,14 +51,17 @@ const Auth = () => {
     signInWithPassword,
     signUpWithPassword,
     user,
-    isLoading: isAuthLoading, // Renomeado para evitar conflito com o estado local
+    isLoading: isAuthLoading,
   } = useAuth();
 
   const [localIsLoading, setLocalIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogContent, setDialogContent] = useState({
+    title: '',
+    description: '',
+  });
+  const [isErrorDialog, setIsErrorDialog] = useState(false);
 
-  // Estados dos formulários
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
@@ -35,7 +70,6 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [activeTab, setActiveTab] = useState('login');
 
-  // Efeito para redirecionar o usuário se ele já estiver logado ao visitar esta página
   useEffect(() => {
     if (!isAuthLoading && user) {
       const from = location.state?.from?.pathname || '/dashboard';
@@ -46,59 +80,59 @@ const Auth = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalIsLoading(true);
-    setError('');
-    setSuccess('');
-
     const { error } = await signInWithPassword(loginEmail, loginPassword);
-
-    // O redirecionamento é tratado pelo useEffect acima quando o 'user' for atualizado pelo AuthContext.
-    // Apenas precisamos parar o loader local se houver um erro de autenticação.
     if (error) {
-      setError(error);
-      setLocalIsLoading(false);
+      setDialogContent({
+        title: 'Erro no Login',
+        description: translateAuthError(error),
+      });
+      setIsErrorDialog(true);
+      setDialogOpen(true);
     }
+    setLocalIsLoading(false);
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
-
     if (registerPassword !== confirmPassword) {
-      setError('As senhas não coincidem');
-      return;
-    }
-    if (registerPassword.length < 6) {
-      setError('A senha deve ter pelo menos 6 caracteres');
+      setDialogContent({
+        title: 'Erro no Cadastro',
+        description: 'As senhas não coincidem.',
+      });
+      setIsErrorDialog(true);
+      setDialogOpen(true);
       return;
     }
 
     setLocalIsLoading(true);
-
     const { error } = await signUpWithPassword(
       registerEmail,
       registerPassword,
       registerNome,
     );
-
-    setLocalIsLoading(false);
     if (error) {
-      setError(error);
+      setDialogContent({
+        title: 'Erro no Cadastro',
+        description: translateAuthError(error),
+      });
+      setIsErrorDialog(true);
+      setDialogOpen(true);
     } else {
-      // O AuthContext já mostra o toast "Verifique seu e-mail".
-      // Aqui apenas atualizamos a UI local.
-      setSuccess(
-        'Cadastro realizado! Verifique seu e-mail para ativar sua conta.',
-      );
+      setDialogContent({
+        title: 'Cadastro Realizado com Sucesso!',
+        description:
+          'Enviamos um link de confirmação para o seu e-mail. Por favor, verifique sua caixa de entrada para ativar sua conta.',
+      });
+      setIsErrorDialog(false);
+      setDialogOpen(true);
+
       setRegisterNome('');
       setRegisterEmail('');
       setRegisterPassword('');
       setConfirmPassword('');
-      setTimeout(() => {
-        setActiveTab('login');
-        setSuccess('');
-      }, 4000);
+      setActiveTab('login');
     }
+    setLocalIsLoading(false);
   };
 
   return (
@@ -129,11 +163,7 @@ const Auth = () => {
                     id="login-email"
                     type="email"
                     value={loginEmail}
-                    onChange={(e) => {
-                      setLoginEmail(e.target.value);
-                      setError('');
-                      setSuccess('');
-                    }}
+                    onChange={(e) => setLoginEmail(e.target.value)}
                     required
                     disabled={localIsLoading}
                   />
@@ -144,11 +174,7 @@ const Auth = () => {
                     id="login-password"
                     type="password"
                     value={loginPassword}
-                    onChange={(e) => {
-                      setLoginPassword(e.target.value);
-                      setError('');
-                      setSuccess('');
-                    }}
+                    onChange={(e) => setLoginPassword(e.target.value)}
                     required
                     disabled={localIsLoading}
                   />
@@ -240,19 +266,26 @@ const Auth = () => {
 
             <SocialButtons />
           </Tabs>
-
-          {error && (
-            <Alert className="mt-4" variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          {success && (
-            <Alert className="mt-4">
-              <AlertDescription>{success}</AlertDescription>
-            </Alert>
-          )}
         </CardContent>
       </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle
+              className={isErrorDialog ? 'text-destructive' : 'text-primary'}
+            >
+              {dialogContent.title}
+            </DialogTitle>
+            <DialogDescription>{dialogContent.description}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button">OK</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

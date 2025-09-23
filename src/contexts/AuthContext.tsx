@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+// A importação do 'toast' foi mantida pois outras funções podem usá-lo no futuro.
 import { toast } from 'sonner';
 
 // --- Interfaces ---
@@ -11,7 +12,6 @@ interface AppUser {
   email: string;
   nome: string;
 }
-
 interface SubscriptionInfo {
   subscribed: boolean;
   subscription_tier: string | null;
@@ -19,7 +19,6 @@ interface SubscriptionInfo {
   trial_end: string | null;
   in_trial: boolean;
 }
-
 interface AuthContextType {
   user: AppUser | null;
   session: Session | null;
@@ -35,7 +34,7 @@ interface AuthContextType {
     password: string,
     nome: string,
   ) => Promise<{ error?: string }>;
-  signInWithSocial: (provider: 'google' | 'linkedin') => Promise<void>;
+  signInWithSocial: (provider: 'google' | 'linkedin_oidc') => Promise<void>;
   logout: () => Promise<void>;
   startTrial: () => Promise<{ error?: string }>;
   createSubscription: (
@@ -49,7 +48,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// --- Funções Helper ---
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) return error.message;
   return String(error);
@@ -70,21 +68,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isEmailConfirmed, setIsEmailConfirmed] = useState(false);
 
-  // EFEITO 1: O RESPONSÁVEL APENAS POR SINCRONIZAR A SESSÃO
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      setIsEmailConfirmed(!!session?.user?.email_confirmed_at);
       setIsLoading(false);
     });
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      setIsEmailConfirmed(!!session?.user?.email_confirmed_at);
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  // EFEITO 2: O RESPONSÁVEL POR BUSCAR DADOS QUANDO A SESSÃO MUDA
   useEffect(() => {
     const fetchUserData = async () => {
       if (session?.user) {
@@ -98,14 +96,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               .single(),
             supabase.functions.invoke('check-subscription'),
           ]);
-
           if (
             profileResponse.error &&
             profileResponse.error.code !== 'PGRST116'
           )
             throw profileResponse.error;
           if (subscriptionResponse.error) throw subscriptionResponse.error;
-
           const profile = profileResponse.data;
           setUser(
             profile
@@ -116,7 +112,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 }
               : null,
           );
-
           const subData = subscriptionResponse.data;
           setSubscriptionInfo(
             subData || {
@@ -141,7 +136,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setIsLoading(false);
         }
       } else {
-        // Se a sessão se torna nula (logout), limpa os dados do usuário.
         setUser(null);
         setSubscriptionInfo({
           subscribed: false,
@@ -155,42 +149,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     fetchUserData();
   }, [session]);
 
-  // --- Funções de Ação ---
   const signInWithPassword = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     if (error) {
-      toast.error('Erro no login', { description: error.message });
+      // A notificação de erro foi removida daqui
       return { error: error.message };
     }
-    // Sucesso, a mudança de sessão irá acionar o useEffect de busca de dados.
     setSession(data.session);
     return {};
   };
 
+  // --- FUNÇÃO signUpWithPassword ATUALIZADA ---
   const signUpWithPassword = async (
     email: string,
     password: string,
     nome: string,
   ) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: nome } },
-    });
-    if (error) {
-      toast.error('Erro no registro', { description: error.message });
-      return { error: error.message };
+    try {
+      const { data: emailCheck, error: emailCheckError } =
+        await supabase.functions.invoke('check-email-exists', {
+          body: { email },
+        });
+      console.log(emailCheck);
+      console.log(emailCheckError);
+      if (emailCheckError) throw emailCheckError;
+
+      if (emailCheck.exists) {
+        // Retorna um "código de erro" customizado que podemos traduzir no frontend
+        return { error: 'social_account_exists' };
+      }
+
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: nome } },
+      });
+
+      if (signUpError) {
+        return { error: signUpError.message };
+      }
+
+      return {};
+    } catch (error) {
+      return { error: getErrorMessage(error) };
     }
-    toast.success('Registro realizado!', {
-      description: 'Verifique seu e-mail para confirmar a conta.',
-    });
-    return {};
   };
 
-  const signInWithSocial = async (provider: 'google' | 'linkedin') => {
+  const signInWithSocial = async (provider: 'google' | 'linkedin_oidc') => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: { redirectTo: window.location.origin + '/auth/callback' },
@@ -200,7 +208,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const logout = async () => {
-    // Limpa qualquer "permissão de passagem" da sessão do navegador
     sessionStorage.removeItem('trial_skip_granted');
     await supabase.auth.signOut();
   };
