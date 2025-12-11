@@ -1,6 +1,4 @@
-
 import { useState } from 'react';
-import Navigation from '../components/Navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,7 +27,7 @@ const CadastroVagas = () => {
       requisitosObrigatorios: 'React, TypeScript, 5+ anos experiência',
       requisitosDesejaveis: 'Next.js, Node.js, AWS',
       localidade: 'São Paulo, SP - Híbrido',
-      dataCadastro: '15/01/2024'
+      dataCadastro: '15/01/2024',
     },
     {
       id: 2,
@@ -39,8 +37,8 @@ const CadastroVagas = () => {
       requisitosObrigatorios: 'Figma, Adobe XD, Portfolio',
       requisitosDesejaveis: 'Prototipagem, Design System',
       localidade: 'Remote',
-      dataCadastro: '12/01/2024'
-    }
+      dataCadastro: '12/01/2024',
+    },
   ]);
 
   const [showForm, setShowForm] = useState(false);
@@ -51,40 +49,40 @@ const CadastroVagas = () => {
     descricao: '',
     requisitosObrigatorios: '',
     requisitosDesejaveis: '',
-    localidade: ''
+    localidade: '',
   });
 
   const { toast } = useToast();
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (editingVaga) {
       // Editar vaga existente
-      setVagas(prev => prev.map(vaga => 
-        vaga.id === editingVaga.id 
-          ? { ...vaga, ...formData }
-          : vaga
-      ));
+      setVagas((prev) =>
+        prev.map((vaga) =>
+          vaga.id === editingVaga.id ? { ...vaga, ...formData } : vaga,
+        ),
+      );
       toast({
-        title: "Vaga atualizada!",
-        description: "As informações da vaga foram atualizadas com sucesso.",
+        title: 'Vaga atualizada!',
+        description: 'As informações da vaga foram atualizadas com sucesso.',
       });
     } else {
       // Criar nova vaga
       const novaVaga: Vaga = {
         id: Date.now(),
         ...formData,
-        dataCadastro: new Date().toLocaleDateString('pt-BR')
+        dataCadastro: new Date().toLocaleDateString('pt-BR'),
       };
-      setVagas(prev => [...prev, novaVaga]);
+      setVagas((prev) => [...prev, novaVaga]);
       toast({
-        title: "Vaga cadastrada!",
-        description: "Nova vaga foi adicionada com sucesso.",
+        title: 'Vaga cadastrada!',
+        description: 'Nova vaga foi adicionada com sucesso.',
       });
     }
 
@@ -95,7 +93,7 @@ const CadastroVagas = () => {
       descricao: '',
       requisitosObrigatorios: '',
       requisitosDesejaveis: '',
-      localidade: ''
+      localidade: '',
     });
     setShowForm(false);
     setEditingVaga(null);
@@ -109,16 +107,16 @@ const CadastroVagas = () => {
       descricao: vaga.descricao,
       requisitosObrigatorios: vaga.requisitosObrigatorios,
       requisitosDesejaveis: vaga.requisitosDesejaveis,
-      localidade: vaga.localidade
+      localidade: vaga.localidade,
     });
     setShowForm(true);
   };
 
   const handleDelete = (id: number) => {
-    setVagas(prev => prev.filter(vaga => vaga.id !== id));
+    setVagas((prev) => prev.filter((vaga) => vaga.id !== id));
     toast({
-      title: "Vaga removida",
-      description: "A vaga foi removida da sua lista.",
+      title: 'Vaga removida',
+      description: 'A vaga foi removida da sua lista.',
     });
   };
 
@@ -131,19 +129,19 @@ const CadastroVagas = () => {
       descricao: '',
       requisitosObrigatorios: '',
       requisitosDesejaveis: '',
-      localidade: ''
+      localidade: '',
     });
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation />
-      
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Minhas Vagas</h1>
-            <p className="text-gray-600 mt-2">Gerencie as vagas de seu interesse</p>
+            <p className="text-gray-600 mt-2">
+              Gerencie as vagas de seu interesse
+            </p>
           </div>
           <Button onClick={() => setShowForm(true)}>
             <Plus className="mr-2 h-4 w-4" />
@@ -168,7 +166,9 @@ const CadastroVagas = () => {
                     </label>
                     <Input
                       value={formData.titulo}
-                      onChange={(e) => handleInputChange('titulo', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange('titulo', e.target.value)
+                      }
                       placeholder="Ex: Desenvolvedor Frontend"
                       required
                     />
@@ -179,7 +179,9 @@ const CadastroVagas = () => {
                     </label>
                     <Input
                       value={formData.empresa}
-                      onChange={(e) => handleInputChange('empresa', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange('empresa', e.target.value)
+                      }
                       placeholder="Nome da empresa"
                       required
                     />
@@ -192,7 +194,9 @@ const CadastroVagas = () => {
                   </label>
                   <Textarea
                     value={formData.descricao}
-                    onChange={(e) => handleInputChange('descricao', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange('descricao', e.target.value)
+                    }
                     placeholder="Descreva as principais responsabilidades e atividades..."
                     rows={3}
                     required
@@ -205,7 +209,12 @@ const CadastroVagas = () => {
                   </label>
                   <Textarea
                     value={formData.requisitosObrigatorios}
-                    onChange={(e) => handleInputChange('requisitosObrigatorios', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange(
+                        'requisitosObrigatorios',
+                        e.target.value,
+                      )
+                    }
                     placeholder="Liste os requisitos essenciais separados por vírgula..."
                     rows={2}
                     required
@@ -218,7 +227,9 @@ const CadastroVagas = () => {
                   </label>
                   <Textarea
                     value={formData.requisitosDesejaveis}
-                    onChange={(e) => handleInputChange('requisitosDesejaveis', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange('requisitosDesejaveis', e.target.value)
+                    }
                     placeholder="Liste os requisitos desejáveis separados por vírgula..."
                     rows={2}
                   />
@@ -230,7 +241,9 @@ const CadastroVagas = () => {
                   </label>
                   <Input
                     value={formData.localidade}
-                    onChange={(e) => handleInputChange('localidade', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange('localidade', e.target.value)
+                    }
                     placeholder="Ex: São Paulo, SP - Presencial"
                   />
                 </div>
@@ -239,7 +252,11 @@ const CadastroVagas = () => {
                   <Button type="submit">
                     {editingVaga ? 'Atualizar Vaga' : 'Cadastrar Vaga'}
                   </Button>
-                  <Button type="button" variant="outline" onClick={handleCancel}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCancel}
+                  >
                     Cancelar
                   </Button>
                 </div>
@@ -258,7 +275,8 @@ const CadastroVagas = () => {
                   Nenhuma vaga cadastrada
                 </h3>
                 <p className="text-gray-500 mb-4">
-                  Cadastre vagas de seu interesse para comparar com seu currículo
+                  Cadastre vagas de seu interesse para comparar com seu
+                  currículo
                 </p>
                 <Button onClick={() => setShowForm(true)}>
                   <Plus className="mr-2 h-4 w-4" />
@@ -275,7 +293,9 @@ const CadastroVagas = () => {
                       <h3 className="text-xl font-semibold text-gray-900 mb-1">
                         {vaga.titulo}
                       </h3>
-                      <p className="text-blue-600 font-medium">{vaga.empresa}</p>
+                      <p className="text-blue-600 font-medium">
+                        {vaga.empresa}
+                      </p>
                       {vaga.localidade && (
                         <p className="text-gray-500 flex items-center mt-1">
                           <MapPin className="h-4 w-4 mr-1" />
@@ -284,15 +304,15 @@ const CadastroVagas = () => {
                       )}
                     </div>
                     <div className="flex space-x-2">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => handleEdit(vaga)}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => handleDelete(vaga.id)}
                       >
@@ -303,19 +323,29 @@ const CadastroVagas = () => {
 
                   <div className="space-y-3">
                     <div>
-                      <h4 className="font-medium text-gray-900 mb-1">Descrição:</h4>
+                      <h4 className="font-medium text-gray-900 mb-1">
+                        Descrição:
+                      </h4>
                       <p className="text-gray-700 text-sm">{vaga.descricao}</p>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <h4 className="font-medium text-gray-900 mb-1">Requisitos Obrigatórios:</h4>
-                        <p className="text-gray-700 text-sm">{vaga.requisitosObrigatorios}</p>
+                        <h4 className="font-medium text-gray-900 mb-1">
+                          Requisitos Obrigatórios:
+                        </h4>
+                        <p className="text-gray-700 text-sm">
+                          {vaga.requisitosObrigatorios}
+                        </p>
                       </div>
                       {vaga.requisitosDesejaveis && (
                         <div>
-                          <h4 className="font-medium text-gray-900 mb-1">Requisitos Desejáveis:</h4>
-                          <p className="text-gray-700 text-sm">{vaga.requisitosDesejaveis}</p>
+                          <h4 className="font-medium text-gray-900 mb-1">
+                            Requisitos Desejáveis:
+                          </h4>
+                          <p className="text-gray-700 text-sm">
+                            {vaga.requisitosDesejaveis}
+                          </p>
                         </div>
                       )}
                     </div>

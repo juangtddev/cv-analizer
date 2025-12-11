@@ -1,62 +1,103 @@
-
-import { useState } from 'react';
-import Navigation from '../components/Navigation';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useAuth } from '../contexts/AuthContext';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { useUpdateUserProfile } from '@/hooks/useUpdateUserProfile';
+import { UserProfile } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { User, Mail, Phone, Link as LinkIcon, MapPin, Settings, Save } from 'lucide-react';
+import {
+  User,
+  Mail,
+  Phone,
+  Link as LinkIcon,
+  MapPin,
+  Settings,
+  Save,
+} from 'lucide-react';
 
 const Perfil = () => {
-  const { user } = useAuth();
   const { toast } = useToast();
+  const { data: userProfile, isLoading: isLoadingProfile } = useUserProfile();
+  const { mutateAsync: updateUser, isPending: isUpdating } =
+    useUpdateUserProfile();
+
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    nome: user?.nome || '',
-    email: user?.email || '',
-    telefone: '(11) 99999-9999',
-    linkedin: 'https://linkedin.com/in/joao-silva',
-    portfolio: 'https://joaosilva.dev',
-    localizacao: 'São Paulo, SP',
-    bio: 'Desenvolvedor Frontend especializado em React e TypeScript, com 5+ anos de experiência criando interfaces modernas e responsivas.',
+    nome: userProfile?.nome || '',
+    email: userProfile?.email || '',
+    telefone: '',
+    linkedin: '',
+    portfolio: '',
+    localizacao: '',
+    bio: '',
     preferenciasAnalise: 'tecnologia',
-    notificacoes: true
+    notificacoes: true,
   });
 
-  const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  useEffect(() => {
+    if (userProfile) {
+      setFormData({
+        nome: userProfile.nome,
+        email: userProfile.email,
+        telefone: userProfile.telefone || '',
+        linkedin: userProfile.linkedin || '',
+        portfolio: userProfile.portfolio || '',
+        localizacao: userProfile.localizacao || '',
+        bio: userProfile.bio || '',
+      });
+    }
+  }, [userProfile]);
+
+  const handleInputChange = (field: keyof UserProfile, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
-    // Aqui você salvaria os dados via API
-    toast({
-      title: "Perfil atualizado!",
-      description: "Suas informações foram salvas com sucesso.",
-    });
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      await updateUser(formData);
+      toast({
+        title: 'Perfil atualizado!',
+        description: 'Suas informações foram salvas com sucesso.',
+      });
+      setIsEditing(false);
+    } catch (error) {
+      toast({
+        title: 'Erro ao salvar',
+        description: (error as Error).message,
+        variant: 'destructive',
+      });
+    }
   };
+
+  if (isLoadingProfile) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   const stats = [
     { label: 'Currículos Analisados', value: '8' },
     { label: 'Vagas Cadastradas', value: '12' },
     { label: 'Nota Média Atual', value: '8.4' },
-    { label: 'Melhoria Total', value: '+1.2' }
+    { label: 'Melhoria Total', value: '+1.2' },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation />
-      
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Meu Perfil</h1>
-            <p className="text-gray-600 mt-2">Gerencie suas informações pessoais e preferências</p>
+            <p className="text-gray-600 mt-2">
+              Gerencie suas informações pessoais e preferências
+            </p>
           </div>
-          <Button 
-            onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+          <Button
+            onClick={() => (isEditing ? handleSave() : setIsEditing(true))}
             className={isEditing ? 'bg-green-600 hover:bg-green-700' : ''}
           >
             {isEditing ? (
@@ -78,7 +119,9 @@ const Perfil = () => {
           {stats.map((stat, index) => (
             <Card key={index}>
               <CardContent className="p-6 text-center">
-                <div className="text-2xl font-bold text-blue-600 mb-2">{stat.value}</div>
+                <div className="text-2xl font-bold text-blue-600 mb-2">
+                  {stat.value}
+                </div>
                 <div className="text-sm text-gray-600">{stat.label}</div>
               </CardContent>
             </Card>
@@ -103,7 +146,9 @@ const Perfil = () => {
                     </label>
                     <Input
                       value={formData.nome}
-                      onChange={(e) => handleInputChange('nome', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange('nome', e.target.value)
+                      }
                       disabled={!isEditing}
                     />
                   </div>
@@ -115,7 +160,9 @@ const Perfil = () => {
                       <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
                         value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange('email', e.target.value)
+                        }
                         disabled={!isEditing}
                         className="pl-10"
                       />
@@ -132,7 +179,9 @@ const Perfil = () => {
                       <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
                         value={formData.telefone}
-                        onChange={(e) => handleInputChange('telefone', e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange('telefone', e.target.value)
+                        }
                         disabled={!isEditing}
                         className="pl-10"
                       />
@@ -146,7 +195,9 @@ const Perfil = () => {
                       <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
                         value={formData.localizacao}
-                        onChange={(e) => handleInputChange('localizacao', e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange('localizacao', e.target.value)
+                        }
                         disabled={!isEditing}
                         className="pl-10"
                       />
@@ -183,7 +234,9 @@ const Perfil = () => {
                   </label>
                   <Input
                     value={formData.linkedin}
-                    onChange={(e) => handleInputChange('linkedin', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange('linkedin', e.target.value)
+                    }
                     disabled={!isEditing}
                     type="url"
                     placeholder="https://linkedin.com/in/seu-perfil"
@@ -195,7 +248,9 @@ const Perfil = () => {
                   </label>
                   <Input
                     value={formData.portfolio}
-                    onChange={(e) => handleInputChange('portfolio', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange('portfolio', e.target.value)
+                    }
                     disabled={!isEditing}
                     type="url"
                     placeholder="https://seusite.com"
@@ -216,10 +271,12 @@ const Perfil = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Foco Principal
                   </label>
-                  <select 
+                  <select
                     className="w-full p-2 border border-gray-300 rounded-md"
                     value={formData.preferenciasAnalise}
-                    onChange={(e) => handleInputChange('preferenciasAnalise', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange('preferenciasAnalise', e.target.value)
+                    }
                     disabled={!isEditing}
                   >
                     <option value="tecnologia">Tecnologia</option>
@@ -236,11 +293,16 @@ const Perfil = () => {
                     type="checkbox"
                     id="notificacoes"
                     checked={formData.notificacoes}
-                    onChange={(e) => handleInputChange('notificacoes', e.target.checked)}
+                    onChange={(e) =>
+                      handleInputChange('notificacoes', e.target.checked)
+                    }
                     disabled={!isEditing}
                     className="h-4 w-4 text-blue-600"
                   />
-                  <label htmlFor="notificacoes" className="text-sm text-gray-700">
+                  <label
+                    htmlFor="notificacoes"
+                    className="text-sm text-gray-700"
+                  >
                     Receber notificações por e-mail
                   </label>
                 </div>
@@ -253,9 +315,12 @@ const Perfil = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600 mb-2">Gratuito</div>
+                  <div className="text-2xl font-bold text-blue-600 mb-2">
+                    Gratuito
+                  </div>
                   <p className="text-sm text-gray-600 mb-4">
-                    Você tem acesso a análises básicas e pode cadastrar até 5 vagas.
+                    Você tem acesso a análises básicas e pode cadastrar até 5
+                    vagas.
                   </p>
                   <Button variant="outline" className="w-full">
                     Upgrade para Premium
@@ -286,7 +351,8 @@ const Perfil = () => {
         {isEditing && (
           <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-sm text-yellow-800">
-              <strong>Modo de edição ativado:</strong> Faça suas alterações e clique em "Salvar Alterações" para confirmar.
+              <strong>Modo de edição ativado:</strong> Faça suas alterações e
+              clique em "Salvar Alterações" para confirmar.
             </p>
           </div>
         )}

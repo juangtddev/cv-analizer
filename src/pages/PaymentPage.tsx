@@ -1,7 +1,3 @@
-// Em src/pages/PaymentPage.tsx
-
-'use client';
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -18,61 +14,34 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Terminal, CheckCircle2, Loader2, Lock } from 'lucide-react';
 import { CheckoutForm } from '@/components/payment/CheckoutForm';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
+import { usePlans } from '@/hooks/usePlans';
+import { Plan } from '@/types/index';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
-interface Plan {
-  id: string;
-  name: string;
-  description: string | null;
-  price: {
-    id: string;
-    amount: number | null;
-    currency: string;
-    interval: string | undefined;
-  };
-}
-
 export default function PaymentPage() {
-  const { subscriptionInfo, isLoading: isAuthLoading, startTrial } = useAuth();
+  const { isLoading: isAuthLoading, startTrial } = useAuth();
+  const { data: subscriptionInfo, isLoading: isSubscriptionLoading } =
+    useSubscription();
+  const { data: plans, isLoading: isLoadingPlans } = usePlans();
+
   const navigate = useNavigate();
   const [isTrialLoading, setIsTrialLoading] = useState(false);
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchPlans = async () => {
-      try {
-        setIsLoadingPlans(true);
-        const { data, error } = await supabase.functions.invoke(
-          'get-active-products',
-        );
-        if (error) throw error;
-        const fetchedPlans: Plan[] = data.plans || [];
-        setPlans(fetchedPlans);
-        if (fetchedPlans.length > 0) {
-          setSelectedPlan(fetchedPlans[0].price.id);
-        }
-      } catch (error) {
-        console.error('Erro ao buscar planos:', error);
-        toast.error('Não foi possível carregar os planos de assinatura.');
-      } finally {
-        setIsLoadingPlans(false);
-      }
-    };
-    fetchPlans();
-  }, []);
+    if (plans && plans.length > 0 && !selectedPlan) {
+      setSelectedPlan(plans[0].price.id);
+    }
+  }, [plans, selectedPlan]);
 
-  // --- ADICIONADO: useEffect para redirecionamento pós-assinatura ---
   useEffect(() => {
-    // Se, em qualquer momento, o status do usuário mudar para 'assinado'
-    // enquanto ele estiver nesta página, redirecione-o para o dashboard.
-    if (subscriptionInfo.subscribed) {
+    if (subscriptionInfo?.subscribed) {
       navigate('/dashboard', { replace: true });
     }
-  }, [subscriptionInfo.subscribed, navigate]); // Roda sempre que 'subscribed' mudar
+  }, [subscriptionInfo, navigate]);
 
   const calculateDaysRemaining = () => {
     if (!subscriptionInfo.trial_end) return 0;
@@ -103,22 +72,27 @@ export default function PaymentPage() {
   };
 
   const handleSkipForNow = () => {
-    // --- LÓGICA CORRIGIDA AQUI ---
-    // 1. Dá a "permissão de passagem" para o ProtectedRoute
     sessionStorage.setItem('trial_skip_granted', 'true');
-    // 2. Navega para o dashboard
     navigate('/dashboard');
   };
 
   const formatPrice = (amount: number | null, currency: string) => {
-    if (amount === null) return 'Preço indisponível';
+    if (!amount) return 'Preço indisponível';
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: currency,
     }).format(amount / 100);
   };
 
-  if (isAuthLoading) {
+  if (isAuthLoading || isSubscriptionLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!subscriptionInfo) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

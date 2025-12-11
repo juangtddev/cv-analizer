@@ -1,25 +1,30 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import { Loader2 } from 'lucide-react';
 
 const CallbackHandler = () => {
-  const { subscriptionInfo, isLoading } = useAuth();
-  const navigate = useNavigate();
+  const { session, isLoading: isSessionLoading } = useAuth();
 
+  const { data: subscriptionInfo, isLoading: isSubscriptionLoading } =
+    useSubscription();
+
+  const navigate = useNavigate();
+  const isDoneLoading = !isSessionLoading && !isSubscriptionLoading;
   useEffect(() => {
-    // Espera até que o AuthContext termine de carregar as informações do usuário
-    if (!isLoading) {
-      // REGRA DE NEGÓCIO PRINCIPAL:
-      // Se o usuário já for assinante, vai direto para o dashboard.
-      // Todos os outros (novos, em trial, trial expirado) são enviados para a página de pagamento.
-      if (subscriptionInfo.subscribed) {
+    if (isDoneLoading) {
+      if (!session) {
+        navigate('/login', { replace: true });
+        return;
+      }
+      if (subscriptionInfo?.subscribed) {
         navigate('/dashboard', { replace: true });
       } else {
         navigate('/payment', { replace: true });
       }
     }
-  }, [isLoading, subscriptionInfo.subscribed, navigate]);
+  }, [isDoneLoading, session, subscriptionInfo, navigate]);
 
   return (
     <div className="flex h-screen w-full items-center justify-center">

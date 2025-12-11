@@ -1,14 +1,9 @@
-// Em src/pages/Auth.tsx
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Dialog,
   DialogContent,
@@ -18,12 +13,11 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import { Loader2 } from 'lucide-react';
 import { SocialButtons } from '@/components/auth/SocialButtons';
+import { LoginForm } from '@/components/auth/LoginForm';
+import { RegisterForm } from '@/components/auth/RegisterForm';
 
-// --- NOVA FUNÇÃO "TRADUTORA" ---
 const translateAuthError = (message: string): string => {
-  // --- NOVA TRADUÇÃO ADICIONADA AQUI ---
   if (message.includes('social_account_exists')) {
     return 'Este e-mail já está cadastrado. Tente fazer o login ou use a opção "Esqueceu sua senha?".';
   }
@@ -47,14 +41,10 @@ const translateAuthError = (message: string): string => {
 const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const {
-    signInWithPassword,
-    signUpWithPassword,
-    user,
-    isLoading: isAuthLoading,
-  } = useAuth();
 
-  const [localIsLoading, setLocalIsLoading] = useState(false);
+  const { session, isLoading: isAuthLoading } = useAuth();
+
+  const [activeTab, setActiveTab] = useState('login');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogContent, setDialogContent] = useState({
     title: '',
@@ -62,77 +52,28 @@ const Auth = () => {
   });
   const [isErrorDialog, setIsErrorDialog] = useState(false);
 
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [registerEmail, setRegisterEmail] = useState('');
-  const [registerPassword, setRegisterPassword] = useState('');
-  const [registerNome, setRegisterNome] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [activeTab, setActiveTab] = useState('login');
-
   useEffect(() => {
-    if (!isAuthLoading && user) {
+    if (!isAuthLoading && session) {
       const from = location.state?.from?.pathname || '/dashboard';
       navigate(from, { replace: true });
     }
-  }, [user, isAuthLoading, navigate, location.state]);
+  }, [session, isAuthLoading, navigate, location.state]);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLocalIsLoading(true);
-    const { error } = await signInWithPassword(loginEmail, loginPassword);
-    if (error) {
-      setDialogContent({
-        title: 'Erro no Login',
-        description: translateAuthError(error),
-      });
-      setIsErrorDialog(true);
-      setDialogOpen(true);
-    }
-    setLocalIsLoading(false);
+  const handleAuthError = (title: string, errorMessage: string) => {
+    setDialogContent({ title, description: translateAuthError(errorMessage) });
+    setIsErrorDialog(true);
+    setDialogOpen(true);
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (registerPassword !== confirmPassword) {
-      setDialogContent({
-        title: 'Erro no Cadastro',
-        description: 'As senhas não coincidem.',
-      });
-      setIsErrorDialog(true);
-      setDialogOpen(true);
-      return;
-    }
-
-    setLocalIsLoading(true);
-    const { error } = await signUpWithPassword(
-      registerEmail,
-      registerPassword,
-      registerNome,
-    );
-    if (error) {
-      setDialogContent({
-        title: 'Erro no Cadastro',
-        description: translateAuthError(error),
-      });
-      setIsErrorDialog(true);
-      setDialogOpen(true);
-    } else {
-      setDialogContent({
-        title: 'Cadastro Realizado com Sucesso!',
-        description:
-          'Enviamos um link de confirmação para o seu e-mail. Por favor, verifique sua caixa de entrada para ativar sua conta.',
-      });
-      setIsErrorDialog(false);
-      setDialogOpen(true);
-
-      setRegisterNome('');
-      setRegisterEmail('');
-      setRegisterPassword('');
-      setConfirmPassword('');
-      setActiveTab('login');
-    }
-    setLocalIsLoading(false);
+  const handleRegisterSuccess = () => {
+    setDialogContent({
+      title: 'Cadastro Realizado com Sucesso!',
+      description:
+        'Enviamos um link de confirmação para o seu e-mail. Por favor, verifique sua caixa de entrada.',
+    });
+    setIsErrorDialog(false);
+    setDialogOpen(true);
+    setActiveTab('login');
   };
 
   return (
@@ -156,101 +97,18 @@ const Auth = () => {
             </TabsList>
 
             <TabsContent value="login" className="pt-4">
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">Email</Label>
-                  <Input
-                    id="login-email"
-                    type="email"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    required
-                    disabled={localIsLoading}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">Senha</Label>
-                  <Input
-                    id="login-password"
-                    type="password"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    required
-                    disabled={localIsLoading}
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={localIsLoading}
-                >
-                  {localIsLoading && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Entrar
-                </Button>
-              </form>
+              <LoginForm
+                onLoginError={(msg) => handleAuthError('Erro no Login', msg)}
+              />
             </TabsContent>
 
             <TabsContent value="register" className="pt-4">
-              <form onSubmit={handleRegister} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="register-nome">Nome completo</Label>
-                  <Input
-                    id="register-nome"
-                    type="text"
-                    value={registerNome}
-                    onChange={(e) => setRegisterNome(e.target.value)}
-                    required
-                    disabled={localIsLoading}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="register-email">Email</Label>
-                  <Input
-                    id="register-email"
-                    type="email"
-                    value={registerEmail}
-                    onChange={(e) => setRegisterEmail(e.target.value)}
-                    required
-                    disabled={localIsLoading}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="register-password">Senha</Label>
-                  <Input
-                    id="register-password"
-                    type="password"
-                    value={registerPassword}
-                    onChange={(e) => setRegisterPassword(e.target.value)}
-                    required
-                    disabled={localIsLoading}
-                    minLength={6}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Confirmar senha</Label>
-                  <Input
-                    id="confirm-password"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    disabled={localIsLoading}
-                    minLength={6}
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={localIsLoading}
-                >
-                  {localIsLoading && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Cadastrar
-                </Button>
-              </form>
+              <RegisterForm
+                onRegisterSuccess={handleRegisterSuccess}
+                onRegisterError={(msg) =>
+                  handleAuthError('Erro no Cadastro', msg)
+                }
+              />
             </TabsContent>
 
             <div className="relative my-4">

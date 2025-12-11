@@ -1,69 +1,111 @@
-
-import { useState } from 'react';
-import Navigation from '../components/Navigation';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { Upload, FileText, Link as LinkIcon, Check, Loader2 } from 'lucide-react';
+import {
+  Upload,
+  FileText,
+  Link as LinkIcon,
+  Check,
+  Loader2,
+  Sparkles,
+} from 'lucide-react';
+
+import { useAnalyzeResumeMutation } from '@/hooks/useAnalyzeResumeMutation';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useResumeCount } from '@/hooks/useResumeCount';
+
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const UploadCurriculo = () => {
+  const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [linkedinUrl, setLinkedinUrl] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [uploadStep, setUploadStep] = useState(1);
   const { toast } = useToast();
-  const navigate = useNavigate();
+
+  const { mutate: analyzeResume, isPending: isAnalyzing } =
+    useAnalyzeResumeMutation();
+  const { data: subscriptionInfo, isLoading: isSubscriptionLoading } =
+    useSubscription();
+  const { data: resumeCount, isLoading: isCountLoading } = useResumeCount();
+
+  const isLoadingData = isSubscriptionLoading || isCountLoading;
+
+  const canUpload =
+    !!subscriptionInfo?.subscribed ||
+    (resumeCount != undefined && resumeCount < 1);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      if (file.size > 5 * 1024 * 1024) {
+        // 5MB limit
         toast({
-          title: "Arquivo muito grande",
-          description: "O arquivo deve ter no máximo 5MB.",
-          variant: "destructive",
+          title: 'Arquivo muito grande',
+          description: 'O arquivo deve ter no máximo 5MB.',
+          variant: 'destructive',
         });
         return;
       }
-      
-      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+      const allowedTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ];
       if (!allowedTypes.includes(file.type)) {
         toast({
-          title: "Formato não suportado",
-          description: "Apenas arquivos PDF, DOC e DOCX são aceitos.",
-          variant: "destructive",
+          title: 'Formato não suportado',
+          description: 'Apenas arquivos PDF, DOC e DOCX são aceitos.',
+          variant: 'destructive',
         });
         return;
       }
-      
+
       setSelectedFile(file);
       setUploadStep(2);
+    } else {
+      setSelectedFile(null);
+      setUploadStep(1);
     }
   };
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = () => {
     if (!selectedFile) {
       toast({
-        title: "Erro",
-        description: "Selecione um arquivo para análise.",
-        variant: "destructive",
+        title: 'Erro',
+        description: 'Selecione um arquivo para análise.',
+        variant: 'destructive',
       });
       return;
     }
 
-    setIsAnalyzing(true);
-    
-    // Simulação de análise - substituir por API real
-    setTimeout(() => {
-      setIsAnalyzing(false);
-      toast({
-        title: "Análise concluída!",
-        description: "Seu currículo foi analisado com sucesso.",
-      });
-      navigate('/resultado-analise/1');
-    }, 3000);
+    setUploadStep(3);
+
+    analyzeResume(selectedFile, {
+      onSuccess: (newAnalysis) => {
+        // O nome agora semanticamente é newAnalysis
+        toast({
+          title: 'Análise Concluída!',
+          description:
+            'Seu currículo foi analisado. Redirecionando para o resultado.',
+        });
+
+        // AGORA SIM: newAnalysis.id é o ID da tabela 'analyses'
+        navigate('/resultado-analise/' + newAnalysis.id);
+      },
+      onError: (error) => {
+        toast({
+          title: 'Erro no Processo',
+          description: (error as Error).message,
+          variant: 'destructive',
+        });
+        setUploadStep(2);
+      },
+    });
   };
 
   const formatFileSize = (bytes: number) => {
@@ -76,33 +118,85 @@ const UploadCurriculo = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation />
-      
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Upload de Currículo</h1>
-          <p className="text-gray-600 mt-2">Envie seu currículo para análise detalhada por IA</p>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Upload de Currículo
+          </h1>
+          <p className="text-gray-600 mt-2">
+            Envie seu currículo para análise detalhada por IA
+          </p>
         </div>
-
+        {!canUpload && (
+          <Alert className="mb-8 border-purple-600 text-purple-900 bg-purple-50">
+            <Sparkles className="h-4 w-4" />
+            <AlertTitle className="font-bold">
+              Limite de Análise Gratuita Atingido
+            </AlertTitle>
+            <AlertDescription>
+              Você já utilizou sua análise gratuita. Para realizar análises
+              ilimitadas,
+              <Button
+                variant="link"
+                onClick={() => navigate('/payment')}
+                className="p-1 h-auto text-purple-900 font-bold underline"
+              >
+                faça o upgrade para o plano Premium.
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
         {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex items-center justify-center space-x-4">
-            <div className={`flex items-center ${uploadStep >= 1 ? 'text-blue-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${uploadStep >= 1 ? 'bg-blue-600' : 'bg-gray-300'}`}>
+            <div
+              className={`flex items-center ${
+                uploadStep >= 1 ? 'text-blue-600' : 'text-gray-400'
+              }`}
+            >
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  uploadStep >= 1 ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
+              >
                 <span className="text-white text-sm font-medium">1</span>
               </div>
               <span className="ml-2 font-medium">Upload</span>
             </div>
-            <div className={`w-16 h-1 ${uploadStep >= 2 ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
-            <div className={`flex items-center ${uploadStep >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${uploadStep >= 2 ? 'bg-blue-600' : 'bg-gray-300'}`}>
+            <div
+              className={`w-16 h-1 ${
+                uploadStep >= 2 ? 'bg-blue-600' : 'bg-gray-300'
+              }`}
+            ></div>
+            <div
+              className={`flex items-center ${
+                uploadStep >= 2 ? 'text-blue-600' : 'text-gray-400'
+              }`}
+            >
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  uploadStep >= 2 ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
+              >
                 <span className="text-white text-sm font-medium">2</span>
               </div>
               <span className="ml-2 font-medium">Informações</span>
             </div>
-            <div className={`w-16 h-1 ${uploadStep >= 3 ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
-            <div className={`flex items-center ${uploadStep >= 3 ? 'text-blue-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${uploadStep >= 3 ? 'bg-blue-600' : 'bg-gray-300'}`}>
+            <div
+              className={`w-16 h-1 ${
+                uploadStep >= 3 ? 'bg-blue-600' : 'bg-gray-300'
+              }`}
+            ></div>
+            <div
+              className={`flex items-center ${
+                uploadStep >= 3 ? 'text-blue-600' : 'text-gray-400'
+              }`}
+            >
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  uploadStep >= 3 ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
+              >
                 <span className="text-white text-sm font-medium">3</span>
               </div>
               <span className="ml-2 font-medium">Análise</span>
@@ -121,34 +215,46 @@ const UploadCurriculo = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div 
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer"
-                  onClick={() => document.getElementById('file-upload')?.click()}
+                <div
+                  className={`border-2 border-dashed ... ${
+                    !canUpload
+                      ? 'cursor-not-allowed opacity-60'
+                      : 'cursor-pointer hover:border-blue-400'
+                  }`}
+                  onClick={() =>
+                    canUpload && document.getElementById('file-upload')?.click()
+                  }
                 >
                   <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                   <p className="text-lg font-medium text-gray-900 mb-2">
-                    {selectedFile ? selectedFile.name : 'Clique para selecionar arquivo'}
+                    {selectedFile
+                      ? selectedFile.name
+                      : 'Clique para selecionar arquivo'}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {selectedFile 
-                      ? `${formatFileSize(selectedFile.size)} • ${selectedFile.type}`
-                      : 'PDF, DOC, DOCX (máx. 5MB)'
-                    }
+                    {selectedFile
+                      ? `${formatFileSize(selectedFile.size)} • ${
+                          selectedFile.type
+                        }`
+                      : 'PDF, DOC, DOCX (máx. 5MB)'}
                   </p>
                 </div>
-                
+
                 <input
                   id="file-upload"
                   type="file"
                   accept=".pdf,.doc,.docx"
                   onChange={handleFileChange}
                   className="hidden"
+                  disabled={isAnalyzing || !canUpload}
                 />
 
                 {selectedFile && (
                   <div className="flex items-center p-3 bg-green-50 border border-green-200 rounded-lg">
                     <Check className="h-5 w-5 text-green-600 mr-3" />
-                    <span className="text-green-800">Arquivo carregado com sucesso!</span>
+                    <span className="text-green-800">
+                      Arquivo carregado com sucesso!
+                    </span>
                   </div>
                 )}
               </div>
@@ -174,12 +280,14 @@ const UploadCurriculo = () => {
                     placeholder="https://linkedin.com/in/seu-perfil"
                     value={linkedinUrl}
                     onChange={(e) => setLinkedinUrl(e.target.value)}
+                    disabled={isAnalyzing} // Desabilita enquanto estiver analisando
                   />
                 </div>
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-800">
-                    <strong>Dica:</strong> Adicionar seu LinkedIn pode enriquecer a análise 
-                    com informações adicionais sobre suas conexões e recomendações.
+                    <strong>Dica:</strong> Adicionar seu LinkedIn pode
+                    enriquecer a análise com informações adicionais sobre suas
+                    conexões e recomendações.
                   </p>
                 </div>
               </div>
@@ -195,7 +303,9 @@ const UploadCurriculo = () => {
           <CardContent>
             <div className="space-y-4">
               <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Nossa IA analisará:</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Nossa IA analisará:
+                </h3>
                 <div className="grid md:grid-cols-2 gap-4">
                   <ul className="space-y-2">
                     <li className="flex items-center text-sm text-gray-700">
@@ -220,7 +330,7 @@ const UploadCurriculo = () => {
                 </div>
               </div>
 
-              <Button 
+              <Button
                 onClick={handleAnalyze}
                 size="lg"
                 className="w-full"
@@ -229,7 +339,7 @@ const UploadCurriculo = () => {
                 {isAnalyzing ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Analisando... (isso pode levar alguns minutos)
+                    Analisando...
                   </>
                 ) : (
                   <>
@@ -238,14 +348,6 @@ const UploadCurriculo = () => {
                   </>
                 )}
               </Button>
-
-              {isAnalyzing && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="text-sm text-yellow-800">
-                    Nossa IA está processando seu currículo. Você receberá uma notificação quando a análise estiver pronta.
-                  </p>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>

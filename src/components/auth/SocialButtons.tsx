@@ -3,20 +3,13 @@
 import { Button } from '@/components/ui/button'; // Ajuste o caminho se necessário
 import { supabase } from '@/integrations/supabase/client'; // 1. Importe o cliente Supabase
 import { Chrome, Linkedin } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 export function SocialButtons() {
-  async function handleOAuthLogin(strProvider) {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: strProvider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-
-    if (error) {
-      console.error('Erro no login OAuth:', error.message);
-    }
-  }
+  const { signInWithSocial } = useAuth();
+  const handleOAuthLogin = (provider: 'google' | 'linkedin_oidc') => {
+    signInWithSocial(provider);
+  };
 
   return (
     <div className="flex w-full flex-col items-center gap-2">

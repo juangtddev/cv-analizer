@@ -12,10 +12,71 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
+      analyses: {
+        Row: {
+          analysis_date: string
+          id: string
+          report_json: Json | null
+          resume_id: string
+          score: number | null
+          status: Database["public"]["Enums"]["analysis_status"]
+        }
+        Insert: {
+          analysis_date?: string
+          id?: string
+          report_json?: Json | null
+          resume_id: string
+          score?: number | null
+          status?: Database["public"]["Enums"]["analysis_status"]
+        }
+        Update: {
+          analysis_date?: string
+          id?: string
+          report_json?: Json | null
+          resume_id?: string
+          score?: number | null
+          status?: Database["public"]["Enums"]["analysis_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analyses_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           email: string
           id: string
@@ -23,6 +84,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           email: string
           id: string
@@ -30,11 +92,42 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           email?: string
           id?: string
           nome?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      resumes: {
+        Row: {
+          content_text: string | null
+          file_name: string
+          file_url: string
+          id: string
+          is_primary: boolean
+          uploaded_at: string
+          user_id: string
+        }
+        Insert: {
+          content_text?: string | null
+          file_name: string
+          file_url: string
+          id?: string
+          is_primary?: boolean
+          uploaded_at?: string
+          user_id: string
+        }
+        Update: {
+          content_text?: string | null
+          file_name?: string
+          file_url?: string
+          id?: string
+          is_primary?: boolean
+          uploaded_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -82,13 +175,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_if_email_exists: {
+        Args: { email_to_check: string }
+        Returns: boolean
+      }
+      get_user_resume_count: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       validate_subscription_access: {
         Args: { target_email: string; target_user_id: string }
         Returns: boolean
       }
     }
     Enums: {
-      [_ in never]: never
+      analysis_status: "pending" | "completed" | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -214,7 +315,12 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  public: {
+  graphql_public: {
     Enums: {},
+  },
+  public: {
+    Enums: {
+      analysis_status: ["pending", "completed", "failed"],
+    },
   },
 } as const

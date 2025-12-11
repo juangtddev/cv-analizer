@@ -1,14 +1,15 @@
-// Em src/components/ProtectedRoute.tsx
-
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading, subscriptionInfo } = useAuth();
+  const { session, isLoading: isSessionLoading } = useAuth();
+  const { data: subscriptionInfo, isLoading: isSubscriptionLoading } =
+    useSubscription();
   const location = useLocation();
 
-  if (isLoading) {
+  if (isSessionLoading || isSubscriptionLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -16,7 +17,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  if (!user) {
+  if (!session) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
@@ -25,13 +26,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     sessionStorage.getItem('trial_skip_granted') === 'true';
 
   // 2. Se a permissão existir, nós a usamos e a destruímos imediatamente.
-  if (hasTrialSkipGrant == true) {
+  if (hasTrialSkipGrant) {
     return <>{children}</>; // O acesso é liberado e a função termina.
   }
 
   // 3. Se NÃO havia permissão, a verificação normal continua:
   //    Se não for assinante, o destino é a página de pagamento.
-  if (!subscriptionInfo.subscribed) {
+  if (subscriptionInfo && !subscriptionInfo.subscribed) {
     if (location.pathname !== '/payment') {
       return <Navigate to="/payment" replace />;
     }

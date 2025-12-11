@@ -1,11 +1,21 @@
-
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { User, FileText, Briefcase, BarChart, History, MessageSquare, LogOut } from 'lucide-react';
+import {
+  User,
+  FileText,
+  Briefcase,
+  BarChart,
+  History,
+  MessageSquare,
+  LogOut,
+} from 'lucide-react';
 
 const Navigation = () => {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
+  const { data: userProfile, isLoading: isLoadingProfile } = useUserProfile();
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -19,7 +29,11 @@ const Navigation = () => {
     { path: '/upload-curriculo', label: 'Upload Currículo', icon: FileText },
     { path: '/cadastro-vagas', label: 'Minhas Vagas', icon: Briefcase },
     { path: '/historico', label: 'Histórico', icon: History },
-    { path: '/simulador-entrevista', label: 'Simulador de Entrevista', icon: MessageSquare },
+    {
+      path: '/simulador-entrevista',
+      label: 'Simulador de Entrevista',
+      icon: MessageSquare,
+    },
     { path: '/perfil', label: 'Perfil', icon: User },
   ];
 
@@ -29,7 +43,7 @@ const Navigation = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <div 
+            <div
               className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent cursor-pointer"
               onClick={() => navigate('/dashboard')}
             >
@@ -47,8 +61,8 @@ const Navigation = () => {
                   key={item.path}
                   onClick={() => navigate(item.path)}
                   className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                    isActive 
-                      ? 'bg-blue-100 text-blue-700' 
+                    isActive
+                      ? 'bg-blue-100 text-blue-700'
                       : 'text-gray-600 hover:text-blue-600 hover:bg-gray-100'
                   }`}
                 >
@@ -62,7 +76,7 @@ const Navigation = () => {
           {/* User Info and Logout */}
           <div className="flex items-center space-x-3">
             <span className="hidden sm:block text-sm text-gray-700">
-              Olá, {user?.nome}
+              Olá, {userProfile?.nome}
             </span>
             <Button variant="outline" size="sm" onClick={handleLogout}>
               <LogOut size={14} className="sm:mr-2" />
@@ -82,8 +96,8 @@ const Navigation = () => {
                   key={item.path}
                   onClick={() => navigate(item.path)}
                   className={`flex flex-col items-center justify-center px-3 py-2 rounded-md text-xs font-medium transition-colors min-w-0 flex-shrink-0 ${
-                    isActive 
-                      ? 'bg-blue-100 text-blue-700' 
+                    isActive
+                      ? 'bg-blue-100 text-blue-700'
                       : 'text-gray-600 hover:text-blue-600 hover:bg-gray-100'
                   }`}
                 >

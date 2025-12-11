@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -29,42 +30,37 @@ const cardElementOptions = {
 export function CheckoutForm({ selectedPlanId }: CheckoutFormProps) {
   const stripe = useStripe();
   const elements = useElements();
-  const { user, createSubscription } = useAuth();
+  const { createSubscription } = useAuth();
+  const { data: userProfile, isLoading: isProfileLoading } = useUserProfile();
 
-  const [name, setName] = useState(user?.nome || '');
-  const [email, setEmail] = useState(user?.email || '');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user) {
-      setName(user.nome || '');
-      setEmail(user.email || '');
+    if (userProfile) {
+      setName(userProfile.nome || '');
+      setEmail(userProfile.email || '');
     }
-  }, [user]);
+  }, [userProfile]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setIsLoading(true);
+    setIsSubmitting(true);
     setErrorMessage(null);
 
-    if (!selectedPlanId) {
-      toast.error('Por favor, selecione um plano para continuar.');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!stripe || !elements || !createSubscription) {
-      console.error('Stripe.js ou a função de assinatura não carregou.');
-      setIsLoading(false);
+    if (!stripe || !elements || !selectedPlanId) {
+      toast.error('Erro ao carregar Stripe ou Planos');
+      setIsSubmitting(false);
       return;
     }
 
     const cardElement = elements.getElement(CardElement);
-    if (cardElement == null) {
-      console.error('CardElement não encontrado.');
-      setIsLoading(false);
+    if (!cardElement) {
+      toast.error('Erro nos dados do cartão!');
+      setIsSubmitting(false);
       return;
     }
 
@@ -78,23 +74,23 @@ export function CheckoutForm({ selectedPlanId }: CheckoutFormProps) {
       setErrorMessage(
         pmError.message ?? 'Ocorreu um erro ao validar seu cartão.',
       );
-      setIsLoading(false);
+      setIsSubmitting(false);
       return;
     }
 
-    // --- ALTERAÇÃO FINAL AQUI ---
-    // Agora passamos o paymentMethod.id E o selectedPlanId para a função do contexto
     const { error: subError } = await createSubscription(
       paymentMethod.id,
       selectedPlanId,
     );
 
     if (subError) {
-      setErrorMessage(subError); // Ajustado para pegar a mensagem de erro
+      setErrorMessage(subError);
     }
 
-    setIsLoading(false);
+    setIsSubmitting(false);
   };
+
+  if (isProfileLoading) return <div>Carregando seus dados.</div>;
 
   return (
     <form id="payment-form" onSubmit={handleSubmit} className="space-y-4">
@@ -107,7 +103,7 @@ export function CheckoutForm({ selectedPlanId }: CheckoutFormProps) {
           onChange={(e) => setName(e.target.value)}
           placeholder="Seu nome como aparece no cartão"
           required
-          disabled={isLoading}
+          disabled={isSubmitting}
         />
       </div>
       <div className="space-y-2 text-left">
@@ -119,19 +115,19 @@ export function CheckoutForm({ selectedPlanId }: CheckoutFormProps) {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="seu@email.com"
           required
-          disabled={isLoading}
+          disabled={isSubmitting}
         />
       </div>
       <div className="text-left space-y-2">
         <Label htmlFor="card">Dados do cartão</Label>
         <div
           className={`p-2 border rounded-md ${
-            isLoading ? 'bg-gray-100' : 'bg-white'
+            isSubmitting ? 'bg-gray-100' : 'bg-white'
           }`}
         >
           <CardElement
             id="card"
-            options={{ ...cardElementOptions, disabled: isLoading }}
+            options={{ ...cardElementOptions, disabled: isSubmitting }}
           />
         </div>
       </div>

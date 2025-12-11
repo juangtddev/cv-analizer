@@ -1,18 +1,17 @@
-
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import Landing from './Landing';
 
 const Index = () => {
-  const { user } = useAuth();
+  const { session } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
+    if (session) {
       navigate('/dashboard');
     }
-  }, [user, navigate]);
+  }, [session, navigate]);
 
   return <Landing />;
 };

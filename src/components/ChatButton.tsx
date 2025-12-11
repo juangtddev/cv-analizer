@@ -1,16 +1,15 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Bot, MessageCircle } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import ChatIA from './ChatIA';
 
 const ChatButton = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
-  const { user } = useAuth();
-  const isLoggedIn = !!user;
+  const { session } = useAuth();
+  const isLoggedIn = !!session;
 
   // Para usuários não logados (landing page): sempre mostra notificação
   // Para usuários logados: só mostra quando clicado
@@ -50,9 +49,13 @@ const ChatButton = () => {
             </Badge>
           </div>
         </Button>
-        
+
         {!isChatOpen && showNotification && (
-          <div className={`absolute bottom-16 right-0 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 max-w-xs ${!isLoggedIn ? 'animate-bounce' : ''}`}>
+          <div
+            className={`absolute bottom-16 right-0 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 max-w-xs ${
+              !isLoggedIn ? 'animate-bounce' : ''
+            }`}
+          >
             <div className="flex items-center space-x-2 text-sm">
               <MessageCircle className="h-4 w-4 text-blue-600" />
               <span className="font-medium text-foreground">
@@ -60,16 +63,16 @@ const ChatButton = () => {
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {!isLoggedIn 
-                ? 'Converse com nossa IA sobre carreiras e cadastre-se!' 
+              {!isLoggedIn
+                ? 'Converse com nossa IA sobre carreiras e cadastre-se!'
                 : 'Tire suas dúvidas sobre a plataforma.'}
             </p>
           </div>
         )}
       </div>
 
-      <ChatIA 
-        isOpen={isChatOpen} 
+      <ChatIA
+        isOpen={isChatOpen}
         onClose={handleChatClose}
         isLoggedIn={isLoggedIn}
       />
