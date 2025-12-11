@@ -3,6 +3,11 @@ import { Json } from '@/integrations/supabase/types';
 import { supabase } from '../integrations/supabase/client';
 import { parseAiOutput } from '@/utils/ai-parser';
 
+// --- CONFIGURAÇÃO DE AMBIENTE (Melhores Práticas) ---
+// Captura a URL do Webhook das variáveis de ambiente.
+// Se estiver usando Next.js, altere para: process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL
+const N8N_WEBHOOK_URL = (import.meta as unknown as { env?: { VITE_N8N_WEBHOOK_URL?: string } }).env?.VITE_N8N_WEBHOOK_URL;
+
 interface ApiError extends Error {
   statusCode?: number;
   code?: string;
@@ -15,8 +20,6 @@ interface ApiError extends Error {
 // Helper para criar um erro com a interface ApiError
 function createApiError(message: string, originalError?: unknown): ApiError {
   const error = new Error(message) as ApiError;
-  // Se quiser, pode adicionar o erro original para debug
-  // if (originalError) (error as any).original = originalError;
   return error;
 }
 
@@ -26,8 +29,6 @@ export async function uploadResumeFile(
   const formData = new FormData();
   formData.append('file', file);
 
-  // Não precisamos mais do hack de 'Content-Type: undefined as any'
-  // porque 'authenticatedFetch' já lida com FormData
   const { data, error } = await supabase.functions.invoke(
     'upload-resume-file',
     {
@@ -60,15 +61,12 @@ export interface Resume {
   file_name: string;
   file_url: string;
   created_at: string;
-  // Adicione outros campos que sua tabela 'resumes' possa ter
-  // Ex: status_analise?: 'pendente' | 'processando' | 'concluido' | 'erro';
 }
 
 export async function getUserResumes(): Promise<Resume[]> {
   const { data, error } = await supabase.functions.invoke('get-user-resumes');
 
   if (error) throw error;
-  // A sua Edge Function retorna um objeto { resumes: [...] }, então pegamos 'data.resumes'.
   return data.resumes || [];
 }
 
@@ -86,25 +84,25 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
-// Em src/services/supabase-api.ts
-
 export const requestAiAnalysis = async (file: File, resumeId: string) => {
+  // Verificação de segurança para garantir que a variável de ambiente existe
+  if (!N8N_WEBHOOK_URL) {
+    console.error('CRITICAL: VITE_N8N_WEBHOOK_URL não está definida no .env');
+    throw new Error('Erro de configuração: URL da IA não encontrada.');
+  }
+
   // 1. Prepara o arquivo
   const base64File = await fileToBase64(file);
 
   // 2. Monta o corpo da requisição
-  // Mantemos a estrutura que funcionou: message vazia para não confundir o N8N
   const body = {
     curriculo: base64File,
     codigoia: resumeId,
     message: '',
   };
 
-  const AI_API_URL =
-    'https://n8n.1boaideia.com.br/webhook/da1fea52-3693-4274-82f0-0bd75d33f3d5';
-
-  // 3. Faz a chamada
-  const response = await fetch(AI_API_URL, {
+  // 3. Faz a chamada usando a variável de ambiente
+  const response = await fetch(N8N_WEBHOOK_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -121,7 +119,7 @@ export const requestAiAnalysis = async (file: File, resumeId: string) => {
     throw new Error(errorMessage);
   }
 
-  // 5. Retorna o JSON direto (sem conversão intermediária de texto)
+  // 5. Retorna o JSON direto
   return response.json();
 };
 
@@ -171,8 +169,6 @@ export const fetchUserResumeCount = async (): Promise<number> => {
   return data;
 };
 
-// Adicione ao final de src/services/supabase-api.ts
-
 // Tipo para a listagem do dashboard
 export interface DashboardAnalysis {
   id: string;
@@ -207,8 +203,6 @@ export const getRecentAnalyses = async (): Promise<DashboardAnalysis[]> => {
     throw new Error('Não foi possível carregar o histórico recente.');
   }
 
-  // O Supabase retorna resumes como um array ou objeto dependendo da relação,
-  // aqui forçamos a tipagem para garantir que o frontend receba o esperado.
   return data as unknown as DashboardAnalysis[];
 };
 
