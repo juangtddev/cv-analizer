@@ -5,8 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useUpdateUserProfile } from '@/hooks/useUpdateUserProfile';
+import { useSubscription } from '@/hooks/useSubscription'; // Importamos o hook de assinatura
 import { UserProfile } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom'; // Importamos a navegação
 import {
   User,
   Mail,
@@ -15,13 +17,21 @@ import {
   MapPin,
   Settings,
   Save,
+  Loader2,
+  Crown, // Ícone para o plano
+  Sparkles, // Ícone para o botão de upgrade
 } from 'lucide-react';
 
 const Perfil = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // Hooks de dados
   const { data: userProfile, isLoading: isLoadingProfile } = useUserProfile();
   const { mutateAsync: updateUser, isPending: isUpdating } =
     useUpdateUserProfile();
+  const { data: subscription, isLoading: isLoadingSubscription } =
+    useSubscription();
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -36,6 +46,9 @@ const Perfil = () => {
     notificacoes: true,
   });
 
+  // Verifica se é premium
+  const isPremium = subscription?.subscribed;
+
   useEffect(() => {
     if (userProfile) {
       setFormData({
@@ -46,16 +59,19 @@ const Perfil = () => {
         portfolio: userProfile.portfolio || '',
         localizacao: userProfile.localizacao || '',
         bio: userProfile.bio || '',
+        preferenciasAnalise: 'tecnologia', // Mantendo padrão ou vindo do banco se existisse
+        notificacoes: true,
       });
     }
   }, [userProfile]);
 
-  const handleInputChange = (field: keyof UserProfile, value: string) => {
+  const handleInputChange = (field: keyof UserProfile | string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
     try {
+      // @ts-expect-error - Ajuste de tipagem rápido para o exemplo
       await updateUser(formData);
       toast({
         title: 'Perfil atualizado!',
@@ -71,14 +87,15 @@ const Perfil = () => {
     }
   };
 
-  if (isLoadingProfile) {
+  if (isLoadingProfile || isLoadingSubscription) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     );
   }
 
+  // Estatísticas (Futuramente podem vir do banco também)
   const stats = [
     { label: 'Currículos Analisados', value: '8' },
     { label: 'Vagas Cadastradas', value: '12' },
@@ -99,8 +116,11 @@ const Perfil = () => {
           <Button
             onClick={() => (isEditing ? handleSave() : setIsEditing(true))}
             className={isEditing ? 'bg-green-600 hover:bg-green-700' : ''}
+            disabled={isUpdating}
           >
-            {isEditing ? (
+            {isUpdating ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : isEditing ? (
               <>
                 <Save className="mr-2 h-4 w-4" />
                 Salvar Alterações
@@ -163,8 +183,8 @@ const Perfil = () => {
                         onChange={(e) =>
                           handleInputChange('email', e.target.value)
                         }
-                        disabled={!isEditing}
-                        className="pl-10"
+                        disabled={true} // Email geralmente não se edita fácil assim, melhor travar
+                        className="pl-10 bg-gray-100"
                       />
                     </div>
                   </div>
@@ -309,22 +329,50 @@ const Perfil = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            {/* --- CARD DE PLANO DINÂMICO --- */}
+            <Card
+              className={`border-2 ${
+                isPremium
+                  ? 'border-yellow-400 bg-yellow-50/30'
+                  : 'border-gray-200'
+              }`}
+            >
               <CardHeader>
-                <CardTitle>Plano Atual</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Crown
+                    className={`h-5 w-5 ${
+                      isPremium
+                        ? 'text-yellow-500 fill-yellow-500'
+                        : 'text-gray-400'
+                    }`}
+                  />
+                  Plano Atual
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600 mb-2">
-                    Gratuito
+                  <div
+                    className={`text-2xl font-bold mb-2 ${
+                      isPremium ? 'text-yellow-600' : 'text-blue-600'
+                    }`}
+                  >
+                    {isPremium ? 'Premium' : 'Gratuito'}
                   </div>
                   <p className="text-sm text-gray-600 mb-4">
-                    Você tem acesso a análises básicas e pode cadastrar até 5
-                    vagas.
+                    {isPremium
+                      ? 'Você tem acesso ilimitado a todas as ferramentas e análises avançadas.'
+                      : 'Você tem acesso a análises básicas. Faça upgrade para desbloquear todo o potencial.'}
                   </p>
-                  <Button variant="outline" className="w-full">
-                    Upgrade para Premium
-                  </Button>
+
+                  {!isPremium && (
+                    <Button
+                      onClick={() => navigate('/payment')}
+                      className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-0 shadow-md"
+                    >
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Upgrade para Premium
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -336,9 +384,6 @@ const Perfil = () => {
               <CardContent className="space-y-3">
                 <Button variant="outline" className="w-full">
                   Alterar Senha
-                </Button>
-                <Button variant="outline" className="w-full">
-                  Exportar Dados
                 </Button>
                 <Button variant="destructive" className="w-full">
                   Excluir Conta
