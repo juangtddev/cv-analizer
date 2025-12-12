@@ -338,7 +338,7 @@ const Perfil = () => {
               }`}
             >
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center justify-center gap-2">
                   <Crown
                     className={`h-5 w-5 ${
                       isPremium
