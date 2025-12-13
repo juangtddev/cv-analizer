@@ -80,6 +80,10 @@ serve(
           trial_end: subscription.trial_end
             ? new Date(subscription.trial_end * 1000).toISOString()
             : null,
+
+          // ADICIONE ESTAS DUAS LINHAS:
+          stripe_subscription_id: subscription.id,
+          cancel_at_period_end: subscription.cancel_at_period_end ?? false,
         },
         {
           onConflict: 'email',
