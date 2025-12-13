@@ -35,6 +35,7 @@ export const fetchSubscriptionInfo = async (): Promise<SubscriptionInfo> => {
       subscription_end: null,
       trial_end: null,
       in_trial: false,
+      cancel_at_period_end: false,
     }
   );
 };

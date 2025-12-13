@@ -1,6 +1,11 @@
 // --- Interfaces ---
 
 export interface AppUser {
+  linkedin: string;
+  portfolio: string;
+  localizacao: string;
+  bio: string;
+  telefone: string;
   id: string;
   email: string;
   nome: string;
@@ -22,6 +27,8 @@ export interface SubscriptionInfo {
   subscription_end: string | null;
   trial_end: string | null;
   in_trial: boolean;
+  // Adicione esta linha:
+  cancel_at_period_end?: boolean;
 }
 
 export interface Plan {

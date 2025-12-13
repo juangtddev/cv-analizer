@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useUpdateUserProfile } from '@/hooks/useUpdateUserProfile';
-import { useSubscription } from '@/hooks/useSubscription'; // Importamos o hook de assinatura
+import { useSubscription } from '@/hooks/useSubscription';
+import { useCancelSubscription } from '@/hooks/useCancelSubscription'; // <--- NOVO HOOK
 import { UserProfile } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom'; // Importamos a navegação
+import { useNavigate } from 'react-router-dom';
 import {
   User,
   Mail,
@@ -18,20 +19,36 @@ import {
   Settings,
   Save,
   Loader2,
-  Crown, // Ícone para o plano
-  Sparkles, // Ícone para o botão de upgrade
+  Crown,
+  Sparkles,
+  AlertTriangle,
+  CalendarOff,
 } from 'lucide-react';
+
+// Componentes de Alerta (Certifique-se de ter instalado ou ajuste para o seu Dialog)
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 const Perfil = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Hooks de dados
   const { data: userProfile, isLoading: isLoadingProfile } = useUserProfile();
   const { mutateAsync: updateUser, isPending: isUpdating } =
     useUpdateUserProfile();
   const { data: subscription, isLoading: isLoadingSubscription } =
     useSubscription();
+  const { mutate: cancelSubscription, isPending: isCanceling } =
+    useCancelSubscription(); // <--- USO DO HOOK
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -46,8 +63,9 @@ const Perfil = () => {
     notificacoes: true,
   });
 
-  // Verifica se é premium
   const isPremium = subscription?.subscribed;
+  // Verifica se o cancelamento já foi agendado
+  const isCanceled = subscription?.cancel_at_period_end; 
 
   useEffect(() => {
     if (userProfile) {
@@ -59,20 +77,22 @@ const Perfil = () => {
         portfolio: userProfile.portfolio || '',
         localizacao: userProfile.localizacao || '',
         bio: userProfile.bio || '',
-        preferenciasAnalise: 'tecnologia', // Mantendo padrão ou vindo do banco se existisse
+        preferenciasAnalise: 'tecnologia',
         notificacoes: true,
       });
     }
   }, [userProfile]);
 
-  const handleInputChange = (field: keyof UserProfile | string, value: any) => {
+  const handleInputChange = (
+    field: keyof UserProfile | string,
+    value: string | boolean,
+  ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
     try {
-      // @ts-expect-error - Ajuste de tipagem rápido para o exemplo
-      await updateUser(formData);
+      await updateUser(formData as unknown as UserProfile);
       toast({
         title: 'Perfil atualizado!',
         description: 'Suas informações foram salvas com sucesso.',
@@ -87,6 +107,25 @@ const Perfil = () => {
     }
   };
 
+  const handleCancelSubscription = () => {
+    cancelSubscription(undefined, {
+      onSuccess: () => {
+        toast({
+          title: 'Assinatura cancelada',
+          description: 'Sua assinatura não será renovada ao final do período.',
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: 'Erro ao cancelar',
+          description:
+            'Não foi possível cancelar a assinatura. Tente novamente.',
+          variant: 'destructive',
+        });
+      },
+    });
+  };
+
   if (isLoadingProfile || isLoadingSubscription) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -95,7 +134,6 @@ const Perfil = () => {
     );
   }
 
-  // Estatísticas (Futuramente podem vir do banco também)
   const stats = [
     { label: 'Currículos Analisados', value: '8' },
     { label: 'Vagas Cadastradas', value: '12' },
@@ -106,6 +144,7 @@ const Perfil = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* ... Header e Stats mantidos iguais ... */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Meu Perfil</h1>
@@ -149,7 +188,7 @@ const Perfil = () => {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Informações Pessoais */}
+          {/* Informações Pessoais - Mantido igual */}
           <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader>
@@ -180,16 +219,12 @@ const Perfil = () => {
                       <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
                         value={formData.email}
-                        onChange={(e) =>
-                          handleInputChange('email', e.target.value)
-                        }
-                        disabled={true} // Email geralmente não se edita fácil assim, melhor travar
+                        disabled={true}
                         className="pl-10 bg-gray-100"
                       />
                     </div>
                   </div>
                 </div>
-
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -224,7 +259,6 @@ const Perfil = () => {
                     </div>
                   </div>
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Bio Profissional
@@ -234,7 +268,6 @@ const Perfil = () => {
                     onChange={(e) => handleInputChange('bio', e.target.value)}
                     disabled={!isEditing}
                     rows={3}
-                    placeholder="Conte um pouco sobre sua experiência profissional..."
                   />
                 </div>
               </CardContent>
@@ -259,7 +292,6 @@ const Perfil = () => {
                     }
                     disabled={!isEditing}
                     type="url"
-                    placeholder="https://linkedin.com/in/seu-perfil"
                   />
                 </div>
                 <div>
@@ -273,14 +305,12 @@ const Perfil = () => {
                     }
                     disabled={!isEditing}
                     type="url"
-                    placeholder="https://seusite.com"
                   />
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Preferências e Configurações */}
           <div className="space-y-6">
             <Card>
               <CardHeader>
@@ -307,7 +337,6 @@ const Perfil = () => {
                     <option value="geral">Geral</option>
                   </select>
                 </div>
-
                 <div className="flex items-center space-x-3">
                   <input
                     type="checkbox"
@@ -329,7 +358,7 @@ const Perfil = () => {
               </CardContent>
             </Card>
 
-            {/* --- CARD DE PLANO DINÂMICO --- */}
+            {/* --- CARD DE PLANO ATUALIZADO --- */}
             <Card
               className={`border-2 ${
                 isPremium
@@ -338,7 +367,7 @@ const Perfil = () => {
               }`}
             >
               <CardHeader>
-                <CardTitle className="flex items-center justify-center gap-2">
+                <CardTitle className="flex items-center gap-2">
                   <Crown
                     className={`h-5 w-5 ${
                       isPremium
@@ -358,20 +387,91 @@ const Perfil = () => {
                   >
                     {isPremium ? 'Premium' : 'Gratuito'}
                   </div>
-                  <p className="text-sm text-gray-600 mb-4">
-                    {isPremium
-                      ? 'Você tem acesso ilimitado a todas as ferramentas e análises avançadas.'
-                      : 'Você tem acesso a análises básicas. Faça upgrade para desbloquear todo o potencial.'}
-                  </p>
 
-                  {!isPremium && (
-                    <Button
-                      onClick={() => navigate('/payment')}
-                      className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-0 shadow-md"
-                    >
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Upgrade para Premium
-                    </Button>
+                  {isPremium ? (
+                    <div className="space-y-4">
+                      {isCanceled ? (
+                        <div className="bg-orange-100 text-orange-800 p-3 rounded-md text-sm">
+                          <p className="flex items-center justify-center gap-2 font-semibold">
+                            <CalendarOff className="h-4 w-4" /> Cancelamento
+                            Agendado
+                          </p>
+                          <p className="mt-1">
+                            Seu acesso termina no fim do período atual.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-sm text-gray-600 mb-4">
+                            Você tem acesso ilimitado. Sua assinatura renova
+                            automaticamente.
+                          </p>
+
+                          {/* MODAL DE CONFIRMAÇÃO DE CANCELAMENTO */}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                              >
+                                <AlertTriangle className="mr-2 h-4 w-4" />
+                                Cancelar Assinatura
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Tem certeza que deseja cancelar?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Ao cancelar, você perderá acesso aos recursos
+                                  Premium ao final do seu período de cobrança
+                                  atual (ou teste grátis).
+                                  <br />
+                                  <br />
+                                  Seus dados e históricos serão mantidos, mas
+                                  você não poderá fazer novas análises
+                                  detalhadas.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>
+                                  Manter Assinatura
+                                </AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={handleCancelSubscription}
+                                  className="bg-red-600 hover:bg-red-700 text-white"
+                                  disabled={isCanceling}
+                                >
+                                  {isCanceling ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Cancelando...
+                                    </>
+                                  ) : (
+                                    'Sim, quero cancelar'
+                                  )}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Você tem acesso a análises básicas. Faça upgrade para
+                        desbloquear todo o potencial.
+                      </p>
+                      <Button
+                        onClick={() => navigate('/payment')}
+                        className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-0 shadow-md"
+                      >
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Upgrade para Premium
+                      </Button>
+                    </>
                   )}
                 </div>
               </CardContent>
@@ -394,6 +494,7 @@ const Perfil = () => {
         </div>
 
         {isEditing && (
+          /* ... aviso de edição ... */
           <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-sm text-yellow-800">
               <strong>Modo de edição ativado:</strong> Faça suas alterações e
