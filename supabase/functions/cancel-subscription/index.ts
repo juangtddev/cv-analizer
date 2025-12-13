@@ -9,9 +9,19 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   httpClient: Stripe.createFetchHttpClient(),
 });
 
+// --- CORREÇÃO AQUI: Definindo as opções de CORS ---
+const corsOptions = {
+  allowedMethods: ['POST', 'OPTIONS'] as string[],
+};
+
 serve(
   withCors(async (req) => {
     try {
+      // Se for OPTIONS (preflight), o withCors já trata, mas garantimos que o código segue
+      if (req.method === 'OPTIONS') {
+        return new Response('ok', { headers: { ...corsOptions } });
+      }
+
       const supabaseClient = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -38,7 +48,10 @@ serve(
       if (!subscriber) {
         return new Response(
           JSON.stringify({ message: 'Assinatura não encontrada' }),
-          { status: 400 },
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          },
         );
       }
 
@@ -61,7 +74,10 @@ serve(
           JSON.stringify({
             message: 'Nenhuma assinatura ativa encontrada no Stripe',
           }),
-          { status: 400 },
+          {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          },
         );
       }
 
@@ -85,10 +101,13 @@ serve(
       );
     } catch (error) {
       console.error(error);
-      return new Response(JSON.stringify({ error: error.message }), {
+      const message =
+        error instanceof Error ? error.message : JSON.stringify(error);
+
+      return new Response(JSON.stringify({ error: message }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }
-  }, corsOptions),
-); // Passe as opções CORS aqui
+  }, corsOptions), // Passando a variável definida lá em cima
+);
